@@ -16,9 +16,7 @@
           (let ((inhibit-read-only t))
             (erase-buffer)
             (insert contents))
-          (set-visited-file-name nil) ;; ← detaches from any file
           (set-buffer-modified-p nil)
-          (read-only-mode 1)
           (switch-to-buffer (current-buffer)))))))
 
 (defun rust-doc-connect ()
@@ -36,7 +34,11 @@
   rust-doc--proc)
 
 (defun rust-doc-request-file (path)
-  "Send a JSON request to the Rust server to retrieve the file PATH."
+  "Send a JSON request to the Rust server
+to retrieve the file PATH. It resembles this:
+  {action : get-file,
+   path   : 2-persistent/data.txt}
+but with lots of quotation marks."
   (interactive "FPath to file: ")
   (let* ((request `(:action "get-file" :path ,path))
          (json (json-encode request))
@@ -44,7 +46,7 @@
     (process-send-string proc (concat json "\n"))))
 
 (defun rust-doc-disconnect ()
-  "Manually close the persistent Rust server connection."
+  "Manually close the connection."
   (interactive)
   (when (process-live-p rust-doc--proc)
     (delete-process rust-doc--proc)

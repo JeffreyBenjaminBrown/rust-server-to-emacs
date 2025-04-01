@@ -5,16 +5,18 @@ use std::net::{TcpListener, TcpStream};
 use std::thread;
 use serde::{Serialize,Deserialize};
 
-#[derive(Serialize)]
-struct FileResponse {
-    file: String,
-    contents: String,
-}
-
+// What Rust receives from Emacs.
 #[derive(Deserialize)]
 struct FileRequest {
     action: String,
     path: String,
+}
+
+// What Rust sends in response.
+#[derive(Serialize)]
+struct FileResponse {
+    file: String,
+    contents: String,
 }
 
 fn handle_client(mut stream: TcpStream) {
