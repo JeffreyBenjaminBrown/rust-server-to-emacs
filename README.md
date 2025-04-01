@@ -1,7 +1,10 @@
-# simple/ contains a simple solution
+See the READMEs in 1-simple/ and 2-persistent/ for what they do. But in brief:
 
-This works for small payloads. A connection is opened for each message. The folder has some Rust code and some Emacs code. The evidence that it works appears both in Emacs and in the stdou stream from the Rust server.
+# 1-simple/ contains a simple solution.
 
-# For working at bigger scales
+It's good for low-traffic scenarios.
 
-I will need to keep a persistent connection.
+# 2-persistent contains a heavier-duty solution.
+
+It keeps a persistent connection open,
+which is better for higher traffic loads.

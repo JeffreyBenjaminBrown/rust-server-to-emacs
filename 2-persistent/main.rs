@@ -28,10 +28,17 @@ fn handle_client(mut stream: TcpStream) {
         println!("Received request: {request}");
 
         let response = match fs::read_to_string(request) {
-            Ok(contents) => FileResponse {
-                file: request.to_string(),
-                contents,
-            },
+            Ok(contents) => {
+                let reversed_lines: String = contents
+                    .lines()
+                    .rev()
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                FileResponse {
+                    file: request.to_string(),
+                    contents: reversed_lines,
+                }
+            }
             Err(e) => FileResponse {
                 file: request.to_string(),
                 contents: format!("Error reading file: {e}"),

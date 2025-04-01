@@ -1,3 +1,7 @@
+;; USAGE:
+;; Evaluate the whole buffer.
+;; It's mostly definitions; the last line makes it go.
+
 (defvar rust-doc-buffer-name "*rust-doc*"
   "Buffer name for displaying contents from the Rust server.")
 
