@@ -23,57 +23,60 @@ fn handle_client(mut stream: TcpStream) {
     let peer = stream.peer_addr().unwrap();
     println!("Client connected: {peer}");
 
-    let mut reader =
-	BufReader::new(stream.try_clone().unwrap());
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut line = String::new();
 
     while let Ok(n) = reader.read_line(&mut line) {
-        if n == 0 { // client disconnected
-            break; }
+        if n == 0 { break; } // client disconnected
+        if let Some(response) = process_request(&line) {
+            send_response(&mut stream, &response); }
+        line.clear();
+    }
 
-        let trimmed = line.trim_end();
-        println!("Received raw: {trimmed}");
+    println!("Client disconnected: {peer}");
+}
 
-        let file_req: Result<FileRequest, _> =
-	    serde_json::from_str(trimmed);
-        let response = match file_req {
-            Ok(FileRequest { action, path })
-		if action == "get-file" => {
-                match fs::read_to_string(&path) {
-                    Ok(contents) => {
-                        let reversed_lines: String =
-			    contents
-                            .lines()
-                            .rev()
-                            .collect::<Vec<_>>()
-                            .join("\n");
-                        FileResponse {
-                            file: path,
-                            contents: reversed_lines, } }
-                    Err(e) => FileResponse {
-                        file: path,
-                        contents: format!(
-			    "Error reading file: {e}"),
-                    }, } }
-            Ok(req) => FileResponse {
-                file: String::new(),
-                contents: format!(
-		    "Unsupported action: {}", req.action),
-            },
-            Err(e) => FileResponse {
-                file: String::new(),
-                contents: format!(
-		    "Invalid JSON request: {e}"),
-            },
-        };
+fn process_request(line: &str) -> Option<FileResponse> {
+    let trimmed = line.trim_end();
+    println!("Received raw: {trimmed}");
 
-        let json =
-	    serde_json::to_string(&response).unwrap();
-        writeln!(stream, "{json}").unwrap();
-        stream.flush().unwrap();
+    match serde_json::from_str::<FileRequest>(trimmed) {
+        Ok(FileRequest { action, path })
+	    if action == "get-file" => {
+            Some(read_file_response(&path))
+        }
+        Ok(req) => Some(FileResponse {
+            file: String::new(),
+            contents: format!(
+		"Unsupported action: {}", req.action),
+        }),
+        Err(e) => Some(FileResponse {
+            file: String::new(),
+            contents: format!(
+		"Invalid JSON request: {e}"),
+        } ), } }
 
-        line.clear(); }
-    println!("Client disconnected: {peer}"); }
+fn read_file_response(path: &str) -> FileResponse {
+    match fs::read_to_string(path) {
+        Ok(contents) => {
+            let reversed_lines = contents
+                .lines()
+                .rev()
+                .collect::<Vec<_>>()
+                .join("\n");
+            FileResponse {
+                file: path.to_string(),
+                contents: reversed_lines, } }
+        Err(e) => FileResponse {
+            file: path.to_string(),
+            contents: format!("Error reading file: {e}"),
+        }, } }
+
+fn send_response(stream: &mut TcpStream,
+		 response: &FileResponse) {
+    let json = serde_json::to_string(response).unwrap();
+    writeln!(stream, "{json}").unwrap();
+    stream.flush().unwrap(); }
 
 fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("0.0.0.0:1729")?;
@@ -82,8 +85,8 @@ fn main() -> std::io::Result<()> {
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                thread::spawn(move || handle_client(stream));
-            }
+                thread::spawn(move ||
+			      handle_client(stream)); }
             Err(e) => {
                 eprintln!("Connection failed: {e}");
             } } }
