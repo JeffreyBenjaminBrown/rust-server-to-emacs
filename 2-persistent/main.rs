@@ -3,12 +3,18 @@ use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
-use serde::Serialize;
+use serde::{Serialize,Deserialize};
 
 #[derive(Serialize)]
 struct FileResponse {
     file: String,
     contents: String,
+}
+
+#[derive(Deserialize)]
+struct FileRequest {
+    action: String,
+    path: String,
 }
 
 fn handle_client(mut stream: TcpStream) {
@@ -24,17 +30,37 @@ fn handle_client(mut stream: TcpStream) {
             break;
         }
 
-        let request = line.trim_end();
-        println!("Received request: {request}");
+        let trimmed = line.trim_end();
+        println!("Received raw: {trimmed}");
 
-        let response = match fs::read_to_string(request) {
-            Ok(contents) => FileResponse {
-                file: request.to_string(),
-                contents,
+        let file_req: Result<FileRequest, _> = serde_json::from_str(trimmed);
+        let response = match file_req {
+            Ok(FileRequest { action, path }) if action == "get-file" => {
+                match fs::read_to_string(&path) {
+                    Ok(contents) => {
+                        let reversed_lines: String = contents
+                            .lines()
+                            .rev()
+                            .collect::<Vec<_>>()
+                            .join("\n");
+                        FileResponse {
+                            file: path,
+                            contents: reversed_lines,
+                        }
+                    }
+                    Err(e) => FileResponse {
+                        file: path,
+                        contents: format!("Error reading file: {e}"),
+                    },
+                }
+            }
+            Ok(req) => FileResponse {
+                file: String::new(),
+                contents: format!("Unsupported action: {}", req.action),
             },
             Err(e) => FileResponse {
-                file: request.to_string(),
-                contents: format!("Error reading file: {e}"),
+                file: String::new(),
+                contents: format!("Invalid JSON request: {e}"),
             },
         };
 
