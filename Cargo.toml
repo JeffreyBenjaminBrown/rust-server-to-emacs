@@ -1,0 +1,10 @@
+[package]
+name = "server-for-emacs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[[bin]]
+name = "simple"
+path = "simple/main.rs"
