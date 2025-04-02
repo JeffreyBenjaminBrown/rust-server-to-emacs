@@ -4,7 +4,7 @@
 (defvar rust-doc-buffer-name "*rust-doc*"
   "Buffer name for displaying contents from the Rust server.")
 
-(defun rust-doc-handle-response (proc string)
+(defun rust-doc-handle-the-response-from-rust (proc string)
   "Handle the JSON response from the Rust server."
   (let* ((json-object-type 'plist)
          (response (ignore-errors
@@ -28,7 +28,7 @@
            :buffer "*rust-doc-raw*"
            :host "127.0.0.1"
            :service 1729
-           :filter #'rust-doc-handle-response
+           :filter #'rust-doc-handle-the-response-from-rust
            :coding 'utf-8
            :nowait nil)))
   rust-doc--proc)
