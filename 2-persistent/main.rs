@@ -7,34 +7,44 @@ use serde::{Serialize,Deserialize};
 
 // What Rust receives from Emacs.
 #[derive(Deserialize)]
-struct FileRequest {
-    action: String,
-    path: String,
-}
+struct FileRequest { action: String,
+		     path: String, }
 
 // What Rust sends in response.
 #[derive(Serialize)]
-struct FileResponse {
-    file: String,
-    contents: String,
-}
+struct FileResponse { file: String,
+		      contents: String, }
 
-fn handle_client(mut stream: TcpStream) {
+fn main() -> std::io::Result<()> {
+    let listener = TcpListener::bind("0.0.0.0:1729")?;
+    println!("Listening on port 1729...");
+
+    for stream in listener.incoming() {
+        match stream {
+            Ok(stream) => {
+                thread::spawn(move ||
+			      handle_emacs(stream)); }
+            Err(e) => {
+                eprintln!("Connection failed: {e}");
+            } } }
+
+    Ok(()) }
+
+fn handle_emacs(mut stream: TcpStream) {
     let peer = stream.peer_addr().unwrap();
-    println!("Client connected: {peer}");
+    println!("Emacs connected: {peer}");
 
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
+    let mut reader =
+	BufReader::new(stream.try_clone().unwrap());
     let mut line = String::new();
 
     while let Ok(n) = reader.read_line(&mut line) {
-        if n == 0 { break; } // client disconnected
+        if n == 0 { break; } // emacs disconnected
         if let Some(response) = process_request(&line) {
             send_response(&mut stream, &response); }
-        line.clear();
-    }
+        line.clear(); }
 
-    println!("Client disconnected: {peer}");
-}
+    println!("Emacs disconnected: {peer}"); }
 
 fn process_request(line: &str) -> Option<FileResponse> {
     let trimmed = line.trim_end();
@@ -43,18 +53,15 @@ fn process_request(line: &str) -> Option<FileResponse> {
     match serde_json::from_str::<FileRequest>(trimmed) {
         Ok(FileRequest { action, path })
 	    if action == "get-file" => {
-            Some(read_file_response(&path))
-        }
+            Some(read_file_response(&path)) }
         Ok(req) => Some(FileResponse {
             file: String::new(),
             contents: format!(
-		"Unsupported action: {}", req.action),
-        }),
+		"Unsupported action: {}", req.action), }),
         Err(e) => Some(FileResponse {
             file: String::new(),
             contents: format!(
-		"Invalid JSON request: {e}"),
-        } ), } }
+		"Invalid JSON request: {e}"), } ), } }
 
 fn read_file_response(path: &str) -> FileResponse {
     match fs::read_to_string(path) {
@@ -77,18 +84,3 @@ fn send_response(stream: &mut TcpStream,
     let json = serde_json::to_string(response).unwrap();
     writeln!(stream, "{json}").unwrap();
     stream.flush().unwrap(); }
-
-fn main() -> std::io::Result<()> {
-    let listener = TcpListener::bind("0.0.0.0:1729")?;
-    println!("Listening on port 1729...");
-
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                thread::spawn(move ||
-			      handle_client(stream)); }
-            Err(e) => {
-                eprintln!("Connection failed: {e}");
-            } } }
-
-    Ok(()) }
