@@ -18,7 +18,6 @@ struct FileResponse { file: String,
 fn main() -> std::io::Result<()> {
     let listener = TcpListener::bind("0.0.0.0:1729")?;
     println!("Listening on port 1729...");
-
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
@@ -27,33 +26,28 @@ fn main() -> std::io::Result<()> {
             Err(e) => {
                 eprintln!("Connection failed: {e}");
             } } }
-
     Ok(()) }
 
 fn handle_emacs(mut stream: TcpStream) {
     let peer = stream.peer_addr().unwrap();
     println!("Emacs connected: {peer}");
-
     let mut reader =
 	BufReader::new(stream.try_clone().unwrap());
     let mut line = String::new();
-
     while let Ok(n) = reader.read_line(&mut line) {
         if n == 0 { break; } // emacs disconnected
         if let Some(response) = process_request(&line) {
             send_response(&mut stream, &response); }
         line.clear(); }
-
     println!("Emacs disconnected: {peer}"); }
 
 fn process_request(line: &str) -> Option<FileResponse> {
     let trimmed = line.trim_end();
     println!("Received raw: {trimmed}");
-
     match serde_json::from_str::<FileRequest>(trimmed) {
         Ok(FileRequest { action, path })
 	    if action == "get-file" => {
-            Some(read_file_response(&path)) }
+            Some(read_file_and_build_response(&path)) }
         Ok(req) => Some(FileResponse {
             file: String::new(),
             contents: format!(
@@ -63,7 +57,8 @@ fn process_request(line: &str) -> Option<FileResponse> {
             contents: format!(
 		"Invalid JSON request: {e}"), } ), } }
 
-fn read_file_response(path: &str) -> FileResponse {
+fn read_file_and_build_response(path: &str)
+				-> FileResponse {
     match fs::read_to_string(path) {
         Ok(contents) => {
             let reversed_lines = contents
